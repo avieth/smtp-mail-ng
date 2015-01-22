@@ -8,7 +8,7 @@ module Network.Mail.SMTP.ReplyLine (
   -- Attoparsec parsers for the datatype given above. The only way you can
   -- obtain a ReplyLine or Greeting is by parsing one from a ByteString.
   , greeting
-  , replyLine
+  , replyLines
 
   ) where
 
@@ -50,7 +50,7 @@ replyLine :: Parser ReplyLine
 replyLine = ReplyLine <$> replyCode <* space <*> option "" textstring <* crlf
 
 replyLine' :: Parser ReplyLine
-replyLine' = ReplyLine <$> replyCode <* space <* char '-' <* space <*> option "" textstring <* crlf
+replyLine' = ReplyLine <$> replyCode <* char '-' <*> option "" textstring <* crlf
 
 -- We deviate from the RFC on the response code, because it demands that
 -- an SMTP server SHOULD only send the codes listed in the spec. We just take
