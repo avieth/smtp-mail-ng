@@ -9,9 +9,11 @@ module Network.Mail.SMTP.SMTPParameters (
   , HostName
   , PortNumber(..)
 
+  , defaultSMTPParameters
+
   ) where
 
-import Network.Socket (HostName, PortNumber)
+import Network.Socket (HostName, PortNumber(..))
 
 data SMTPParameters = SMTPParameters {
     smtpHost :: HostName
@@ -40,3 +42,15 @@ data SMTPEncryption
 type SMTPUsername = Maybe String
 
 type SMTPPassword = Maybe String
+
+-- | Default SMTP parameters for some hostname. Uses port 25, no encryption,
+--   no username or password.
+defaultSMTPParameters :: HostName -> SMTPParameters
+defaultSMTPParameters hostname = SMTPParameters {
+    smtpHost = hostname
+  , smtpPort = PortNum (fromIntegral 25)
+  , smtpAuthentication = PLAIN
+  , smtpEncryption = NONE
+  , smtpUsername = Nothing
+  , smtpPassword = Nothing
+  }
