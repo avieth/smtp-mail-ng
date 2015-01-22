@@ -13,7 +13,7 @@ module Network.Mail.SMTP.ReplyLine (
   ) where
 
 import qualified Data.ByteString as B
-import Data.Attoparsec.Char8
+import Data.Attoparsec.ByteString.Char8
 import Control.Applicative
 
 import Network.Mail.SMTP.Types
