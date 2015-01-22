@@ -1,7 +1,6 @@
 module Network.Mail.SMTP.SMTPParameters (
 
     SMTPParameters(..)
-  , SMTPAuthentication(..)
   , SMTPEncryption(..)
   , SMTPUsername
   , SMTPPassword
@@ -14,24 +13,16 @@ module Network.Mail.SMTP.SMTPParameters (
   ) where
 
 import Network.Socket (HostName, PortNumber(..))
+import Network.Mail.SMTP.Auth
 
 data SMTPParameters = SMTPParameters {
     smtpHost :: HostName
   , smtpPort :: PortNumber
-  , smtpAuthentication :: SMTPAuthentication
+  , smtpAuthentication :: AuthType
   , smtpEncryption :: SMTPEncryption
   , smtpUsername :: SMTPUsername
   , smtpPassword :: SMTPPassword
   } deriving (Show)
-
--- | SMTP authentication methods. I don't think this is exhaustive.
-data SMTPAuthentication
-  = LOGIN
-  | PLAIN
-  | CRAMMD5
-  | DIGESTMD5
-  | GSSAPI
-  deriving (Show, Eq, Ord)
 
 -- | SMTP encryption methods.
 data SMTPEncryption
@@ -48,7 +39,7 @@ type SMTPPassword = Maybe String
 defaultSMTPParameters :: HostName -> SMTPParameters
 defaultSMTPParameters hostname = SMTPParameters {
     smtpHost = hostname
-  , smtpPort = PortNum (fromIntegral 25)
+  , smtpPort = 25
   , smtpAuthentication = PLAIN
   , smtpEncryption = NONE
   , smtpUsername = Nothing
