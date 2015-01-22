@@ -32,7 +32,7 @@ data Command
     | EXPN ByteString
     | VRFY ByteString
     | HELP ByteString
-    | AUTH AuthType UserName Password
+    | AUTH ByteString
     | NOOP
     | RSET
     | QUIT
@@ -49,12 +49,11 @@ toByteString command = case command of
     EXPN bs -> B.intercalate space [(B.pack "EXPN"), bs]
     VRFY bs -> B.intercalate space [(B.pack "VRFY"), bs]
     HELP bs -> B.intercalate space [(B.pack "HELP"), bs]
+    AUTH bs -> B.intercalate space [(B.pack "AUTH"), bs]
     NOOP -> B.pack "NOOP"
     RSET -> B.pack "RSET"
     QUIT -> B.pack "QUIT"
     STARTTLS -> B.pack "STARTTLS"
-    AUTH authType username password ->
-      B.intercalate space [B.pack "AUTH", B.pack (show authType), B.pack username, B.pack password]
   where
     space = B.pack " "
 

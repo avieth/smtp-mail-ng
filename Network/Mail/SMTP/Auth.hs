@@ -1,10 +1,10 @@
 module Network.Mail.SMTP.Auth (
-    UserName,
-    Password,
-    AuthType(..),
-    encodeLogin,
-    auth,
-) where
+    UserName
+  , Password
+  , AuthType(..)
+  , encodeLogin
+  , auth
+  ) where
 
 import Crypto.Hash.MD5 (hash)
 import qualified Data.ByteString.Base16 as B16  (encode)
