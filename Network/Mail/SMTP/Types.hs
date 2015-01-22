@@ -55,7 +55,8 @@ toByteString command = case command of
     STARTTLS -> B.pack "STARTTLS"
     AUTH authType username password ->
       B.intercalate space [B.pack "AUTH", B.pack (show authType), B.pack username, B.pack password]
-  where space = B.pack " "
+  where
+    space = B.pack " "
 
 type ReplyCode = Int
 
