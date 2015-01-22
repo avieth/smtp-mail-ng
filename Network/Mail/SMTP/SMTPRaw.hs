@@ -4,8 +4,10 @@ module Network.Mail.SMTP.SMTPRaw (
 
     SMTPRaw
   , smtpConnect
+  , smtpSendCommand
+  , smtpSendCommandAndWait
   , smtpSend
-  , smtpSendAndWait
+  , smtpGetReplyLines
   , smtpDisconnect
 
   ) where
@@ -35,18 +37,28 @@ smtpConnect host port = do
 -- | Send an SMTP command and wait for the reply.
 --   You get Nothing in case the reply does not parse.
 --   No exception handling is performed.
-smtpSendAndWait :: SMTPRaw -> Command -> IO (Maybe [ReplyLine])
-smtpSendAndWait (SMTPRaw handle) cmd = do
-  smtpSend (SMTPRaw handle) cmd
-  replies <- parseWith (B.hGetSome handle 2048) replyLines ""
-  return $ maybeResult replies
+smtpSendCommandAndWait :: SMTPRaw -> Command -> IO (Maybe [ReplyLine])
+smtpSendCommandAndWait smtpraw cmd = do
+  smtpSendCommand smtpraw cmd
+  smtpGetReplyLines smtpraw
 
 -- | Send an SMTP command.
 --   No exception handling is performed.
-smtpSend :: SMTPRaw -> Command -> IO ()
-smtpSend (SMTPRaw handle) cmd = do
-  B.hPut handle (toByteString cmd)
-  B.hPut handle (pack "\r\n")
+smtpSendCommand :: SMTPRaw -> Command -> IO ()
+smtpSendCommand smtpraw cmd = do
+  smtpSendRaw smtpraw (toByteString cmd)
+  smtpSendRaw smtpraw (pack "\r\n")
+
+-- | Send a raw byte string. Use with care. No exception handling is performed.
+smtpSendRaw :: SMTPRaw -> B.ByteString -> IO ()
+smtpSendRaw (SMTPRaw handle) bs = B.hPut handle bs
+
+-- | Try to read ReplyLines from the SMTPRaw.
+--   No exception handling is performed.
+smtpGetReplyLines :: SMTPRaw -> IO (Maybe [ReplyLine])
+smtpGetReplyLines (SMTPRaw handle) = do
+  replies <- parseWith (B.hGetSome handle 2048) replyLines ""
+  return $ maybeResult replies
 
 -- | Close an SMTPRaw handle
 --   Be sure not to use the SMTPHandle after this.
