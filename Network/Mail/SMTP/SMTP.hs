@@ -1,17 +1,17 @@
+{-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 
 module Network.Mail.SMTP.SMTP (
 
-    -- This is an internal module; we are very transparent.
-    SMTP(..)
+    SMTP
+
   , command
   , expect
   , expectCode
 
   , SMTPContext
   , smtpContext
-    -- Oops: exporting a dangerous function. Be careful!
-  , getSMTPHandle
+
   , getSMTPServerHostName
   , getSMTPClientHostName
 
@@ -33,6 +33,14 @@ import Network.Mail.SMTP.Types
 import Network.Mail.SMTP.ReplyLine
 import Network.Mail.SMTP.SMTPRaw
 import Network.Mail.SMTP.SMTPParameters
+
+-- STARTTLS support demands some TLS- and X.509-related definitions.
+import Network.TLS
+import Network.TLS.Extra.Cipher (ciphersuite_all)
+import System.X509 (getSystemCertificateStore)
+import Data.X509.CertificateStore (CertificateStore)
+import Data.ByteString.Char8 (pack)
+import Crypto.Random
 
 import System.IO
 
@@ -113,3 +121,57 @@ expectCode reply code = expect reply hasCode
 -- | Grab the SMTPContext.
 smtpContext :: SMTP SMTPContext
 smtpContext = SMTP $ lift ask
+
+-- | Try to get TLS going on an SMTP connection.
+startTLS :: SMTP ()
+startTLS = do
+  context <- tlsContext
+  reply <- command STARTTLS
+  expectCode reply 220
+  tlsUpgrade context
+  ctxt <- smtpContext
+  reply <- command (EHLO (pack $ getSMTPClientHostName ctxt))
+  expectCode reply 250
+
+tlsContext :: SMTP Context
+tlsContext = SMTP $ do
+  ctxt <- lift ask
+  tlsContext <- liftIO $ try (makeTLSContext (getSMTPHandle ctxt) (getSMTPServerHostName ctxt))
+  case tlsContext :: Either SomeException Context of
+    Left err -> throwE EncryptionError
+    Right context -> return context
+
+tlsUpgrade :: Context -> SMTP ()
+tlsUpgrade context = SMTP $ do
+  result <- liftIO $ try (handshake context)
+  case result :: Either SomeException () of
+    Left err -> throwE EncryptionError
+    Right () -> return ()
+
+-- | Get a TLS context on a given Handle against a given HostName.
+--   We choose a big cipher suite, the SystemRNG, and the system certificate
+--   store. Hopefully this will work most of the time.
+--   This action may throw an exception. We are careful to handle it and
+--   coerce it into a first-class value.
+makeTLSContext :: Handle -> HostName -> IO Context
+makeTLSContext handle hostname = do
+  -- Grab a random number generator.
+  rng <- (createEntropyPool >>= return . cprgCreate) :: IO SystemRNG
+  -- Find the certificate store. No error reporting if we can't find it; you'll
+  -- just (probably) get an error later when the TLS handshake fails due to
+  -- an unknown CA.
+  certStore <- getSystemCertificateStore
+  let params = tlsClientParams hostname certStore
+  contextNew handle params rng
+
+-- | ClientParams are a slight variation on the default: we throw in a given
+--   certificate store and widen the supported ciphers.
+tlsClientParams :: HostName -> CertificateStore -> ClientParams
+tlsClientParams hostname certStore = dflt {
+      clientSupported = supported
+    , clientShared = shared
+    }
+  where
+    dflt = defaultParamsClient hostname ""
+    shared = (clientShared dflt) { sharedCAStore = certStore }
+    supported = (clientSupported dflt) { supportedCiphers = ciphersuite_all }
