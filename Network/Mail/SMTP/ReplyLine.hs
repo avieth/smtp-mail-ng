@@ -5,6 +5,8 @@ module Network.Mail.SMTP.ReplyLine (
     ReplyLine
   , Greeting
 
+  , replyCode
+
   -- Attoparsec parsers for the datatype given above. The only way you can
   -- obtain a ReplyLine or Greeting is by parsing one from a ByteString.
   , greeting
@@ -21,6 +23,9 @@ import Network.Mail.SMTP.Types
 -- | A reply from a server: code and message.
 data ReplyLine = ReplyLine !ReplyCode !B.ByteString
   deriving (Show)
+
+replyCode :: ReplyLine -> ReplyCode
+replyCode (ReplyLine x _) = x
 
 -- | A greeting from a server: domain/host name and message(s).
 data Greeting = Greeting !B.ByteString ![B.ByteString]
@@ -47,16 +52,16 @@ replyLines :: Parser [ReplyLine]
 replyLines = (++) <$> many' replyLine' <*> (pure <$> replyLine)
 
 replyLine :: Parser ReplyLine
-replyLine = ReplyLine <$> replyCode <* space <*> option "" textstring <* crlf
+replyLine = ReplyLine <$> code <* space <*> option "" textstring <* crlf
 
 replyLine' :: Parser ReplyLine
-replyLine' = ReplyLine <$> replyCode <* char '-' <*> option "" textstring <* crlf
+replyLine' = ReplyLine <$> code <* char '-' <*> option "" textstring <* crlf
 
 -- We deviate from the RFC on the response code, because it demands that
 -- an SMTP server SHOULD only send the codes listed in the spec. We just take
 -- any decimal numbere.
-replyCode :: Parser ReplyCode
-replyCode = decimal
+code :: Parser ReplyCode
+code = decimal
 
 -- | Parser for a Greeting.
 greeting :: Parser Greeting
