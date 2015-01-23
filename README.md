@@ -32,7 +32,7 @@ main = smtp smtpParameters $ do
   -- expecting a 220, and then upgrading the underlying connection to TLS.
   startTLS
   -- Authenticate with LOGIN scheme
-  authLogin "aovieth@gmail.com" "mySuperSecretPassword"
+  authLogin "jarndyce@gmail.com" "mySuperSecretPassword"
   -- Send the message
   send message
   -- End the session.
@@ -43,8 +43,8 @@ main = smtp smtpParameters $ do
 message :: Mail
 message = simpleMail' to from subject body
   where
-    to = Address (Just "Alexander Vieth") "aovieth@gmail.com"
-    from = Address (Just "Alexander Vieth") "alex@lagoa.com"
+    from = Address (Just "John Jarndyce") "jarndyce@gmail.com"
+    to = Address (Just "Harold Skimpole") "harold@skimpole.com"
     subject = "Hey!"
     body = "It works!"
 
