@@ -1,3 +1,7 @@
+{-
+Description: various types.
+-}
+
 {-# LANGUAGE OverloadedStrings #-}
 
 module Network.Mail.SMTP.Types (
@@ -26,10 +30,12 @@ import Network.Mail.Mime
 type UserName = String
 type Password = String
 
+-- | Type of SMTP authorization scheme.
 data AuthType
   = LOGIN
   deriving (Show)
 
+-- | SMTP command description.
 data Command
     = HELO ByteString
     | EHLO ByteString
@@ -45,6 +51,8 @@ data Command
     | STARTTLS
     deriving (Show, Eq)
 
+-- | Dump an SMTP command to a bytestring, suitable for transmission to a
+--   server. No CRLF is appended.
 toByteString :: Command -> B.ByteString
 toByteString command = case command of
     HELO bs -> B.intercalate space [(B.pack "HELO"), bs]
@@ -62,9 +70,10 @@ toByteString command = case command of
   where
     space = B.pack " "
 
+-- | Reply code from a server.
 type ReplyCode = Int
 
--- This poor datatype... It doesn't look like it's used anywhere
+-- | This poor datatype... It doesn't look like it's used anywhere
 data Response
     = Ok
     | SystemStatus

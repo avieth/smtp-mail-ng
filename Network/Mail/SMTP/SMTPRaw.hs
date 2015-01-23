@@ -1,5 +1,9 @@
 {-# LANGUAGE OverloadedStrings #-}
 
+{- |
+Description: low-level SMTP communciation.
+-}
+
 module Network.Mail.SMTP.SMTPRaw (
 
     SMTPRaw(..)

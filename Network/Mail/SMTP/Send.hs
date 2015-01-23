@@ -1,3 +1,6 @@
+{- |
+Description: terms for sending mail.
+-}
 module Network.Mail.SMTP.Send (
 
     send
@@ -15,6 +18,8 @@ import qualified Data.ByteString.Lazy as BL
 import Data.ByteString.Char8 (pack)
 import Data.Text.Encoding (encodeUtf8)
 
+-- | Attempt to send an email.
+--   This involves sending MAIL, RCPT, and DATA commands.
 send :: Mail -> SMTP ()
 send mail = do
     content <- liftIO $ fmap BL.toStrict (renderMail' mail)
@@ -25,9 +30,9 @@ send mail = do
     to = map enc $ mailTo mail
     enc = encodeUtf8 . addressEmail
 
--- | Send "rendered" mail. First argument is a coding of the sender address,
---   second is a coding of each recipient address, and third is the message
---   body.
+-- | Attempt to send "rendered" mail. First argument is a coding of the
+--   sender address, second is a coding of each recipient address, and third
+--   is the message body.
 --   It is assumed that the message body does not contain a single dot
 --   followed by a crlf, as this would terminate the message early. Such a
 --   pattern must be escaped by putting another dot.

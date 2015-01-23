@@ -1,3 +1,6 @@
+{-|
+Description: terms for doing SMTP authorization.
+-}
 module Network.Mail.SMTP.Auth (
 
     authLogin

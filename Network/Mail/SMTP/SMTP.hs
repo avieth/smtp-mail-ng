@@ -1,6 +1,10 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 
+{-|
+Description: definition of the SMTP monad and its terms.
+-}
+
 module Network.Mail.SMTP.SMTP (
 
     SMTP
@@ -51,33 +55,8 @@ import Crypto.Random
 
 import System.IO
 
-data SMTPError
-  = UnexpectedResponse
-  | ConnectionFailure
-  | EncryptionError
-  | UnknownError
-  deriving (Show, Eq)
-
-data SMTPContext = SMTPContext {
-    smtpRaw :: SMTPRaw
-  , smtpServerHostName :: HostName
-  , smtpClientHostName :: HostName
-  , smtpDebug :: String -> IO ()
-  }
-
--- | Access the Handle datatype buried beneath the SMTP abstraction.
---   Use with care!
-getSMTPHandle :: SMTPContext -> Handle
-getSMTPHandle = smtpHandle . smtpRaw
-
-getSMTPServerHostName :: SMTPContext -> HostName
-getSMTPServerHostName = smtpServerHostName
-
-getSMTPClientHostName :: SMTPContext -> HostName
-getSMTPClientHostName = smtpClientHostName
-
--- | We define a little SMTP DSL: it can do effects, things can go wrong, and
---   it carried immutable state.
+-- | An SMTP client EDSL: it can do effects, things can go wrong, and
+--   it carries state.
 newtype SMTP a = SMTP {
     runSMTP :: ExceptT SMTPError (StateT SMTPContext IO) a
   } deriving (Functor, Applicative, Monad, MonadIO)
@@ -94,6 +73,7 @@ smtp smtpParameters smtpValue = do
       closeSMTPContext smtpContext
       return x
 
+-- | Attempt to make an SMTPContext.
 makeSMTPContext :: SMTPParameters -> IO (Either SMTPError SMTPContext)
 makeSMTPContext smtpParameters = do
     clientHostname <- getHostName
@@ -108,9 +88,9 @@ makeSMTPContext smtpParameters = do
             then putStrLn
             else const (return ())
 
+-- | Attempt to close an SMTPContext, freeing its resource.
 closeSMTPContext :: SMTPContext -> IO ()
-closeSMTPContext smtpContext = do
-  hClose (smtpHandle (smtpRaw smtpContext))
+closeSMTPContext smtpContext = hClose (smtpHandle (smtpRaw smtpContext))
 
 -- | Send a command, without waiting for the reply.
 command :: Command -> SMTP ()
@@ -150,6 +130,8 @@ expect ok = SMTP $ do
       Just err -> throwE err
       Nothing -> return ()
 
+-- | Like expect, but you give only the ReplyCode that is expected. Any other
+--   reply code, or an unexpected reponse, is considered a failure.
 expectCode :: ReplyCode -> SMTP ()
 expectCode code = expect hasCode
   where
@@ -174,6 +156,7 @@ startTLS = do
   command (EHLO (pack $ getSMTPClientHostName ctxt))
   expectCode 250
 
+-- | Attempt to create a TLS context.
 tlsContext :: SMTP Context
 tlsContext = SMTP $ do
   ctxt <- lift get
@@ -182,6 +165,9 @@ tlsContext = SMTP $ do
     Left err -> throwE EncryptionError
     Right context -> return context
 
+-- | Upgrade to TLS. If the handshake is successful, the underlying SMTPRaw
+--   will be updated so that it pushes/pulls using the TLS context rather
+--   than raw Handle.
 tlsUpgrade :: Context -> SMTP ()
 tlsUpgrade context = SMTP $ do
   result <- liftIO $ try (handshake context)
@@ -225,3 +211,34 @@ tlsClientParams hostname certStore = dflt {
     dflt = defaultParamsClient hostname ""
     shared = (clientShared dflt) { sharedCAStore = certStore }
     supported = (clientSupported dflt) { supportedCiphers = ciphersuite_all }
+
+-- | Description of an error in the SMTP monad evaluation.
+data SMTPError
+  = UnexpectedResponse
+  | ConnectionFailure
+  | EncryptionError
+  | UnknownError
+  deriving (Show, Eq)
+
+-- | Description of the state which an SMTP term needs in order to be
+--   evaluated.
+data SMTPContext = SMTPContext {
+    smtpRaw :: SMTPRaw
+    -- ^ Necessary for push/pull to/from some reasource (probably a Handle).
+  , smtpServerHostName :: HostName
+  , smtpClientHostName :: HostName
+  , smtpDebug :: String -> IO ()
+    -- ^ A pipe into which we can throw debug messages. const (return ()) for
+    -- squelching, or maybe putStrLn for verbosity.
+  }
+
+-- | Access the Handle datatype buried beneath the SMTP abstraction.
+--   Use with care!
+getSMTPHandle :: SMTPContext -> Handle
+getSMTPHandle = smtpHandle . smtpRaw
+
+getSMTPServerHostName :: SMTPContext -> HostName
+getSMTPServerHostName = smtpServerHostName
+
+getSMTPClientHostName :: SMTPContext -> HostName
+getSMTPClientHostName = smtpClientHostName

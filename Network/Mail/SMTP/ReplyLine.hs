@@ -1,3 +1,7 @@
+{-|
+Description: parsing of server replies.
+-}
+
 {-# LANGUAGE OverloadedStrings #-}
 
 module Network.Mail.SMTP.ReplyLine (
@@ -24,6 +28,7 @@ import Network.Mail.SMTP.Types
 data ReplyLine = ReplyLine !ReplyCode !B.ByteString
   deriving (Show)
 
+-- | Projection onto ReplyCode.
 replyCode :: ReplyLine -> ReplyCode
 replyCode (ReplyLine x _) = x
 
@@ -45,9 +50,7 @@ textstring = takeWhile1 predicate
     -- Just check your table ;)
     predicate c' = let c = fromEnum c' in c == 9 || (c >= 32 && c <= 126)
 
--- Spec seems to indicate that the first n reply lines must have a hyphen, but
--- the last one (and there must be at least one) should not have a hyphen
--- between reply code and textstring.
+-- | Parser for one or more server replies.
 replyLines :: Parser [ReplyLine]
 replyLines = (++) <$> many' replyLine' <*> (pure <$> replyLine)
 

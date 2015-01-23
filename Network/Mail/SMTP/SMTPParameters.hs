@@ -1,3 +1,6 @@
+{- |
+Description: parameters for an SMTP session.
+-}
 module Network.Mail.SMTP.SMTPParameters (
 
     SMTPParameters(..)

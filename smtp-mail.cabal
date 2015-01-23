@@ -22,7 +22,7 @@ synopsis:            An SMTP client EDSL
 homepage:            https://github.com/avieth/smtp-mail
 
 -- The license under which the package is released.
--- license:             
+license:             BSD3
 
 -- The file containing the license text.
 license-file:        LICENSE
@@ -48,6 +48,9 @@ extra-source-files:  README.md
 -- Constraint on the version of Cabal needed to build this package.
 cabal-version:       >=1.10
 
+source-repository head
+  type: git
+  location: git@github.com:avieth/smtp-mail.git
 
 library
   -- Modules exported by the library.
@@ -60,11 +63,29 @@ library
   other-extensions:    OverloadedStrings, ScopedTypeVariables, RecordWildCards, GeneralizedNewtypeDeriving
   
   -- Other library packages from which modules are imported.
-  build-depends:       base >=4.7 && <4.8, network >=2.6 && <2.7, mime-mail >=0.4 && <0.5, transformers >=0.4 && <0.5, bytestring >=0.10 && <0.11, haskeline >=0.7 && <0.8, mtl >=2.2 && <2.3, attoparsec >=0.12 && <0.13, filepath >=1.3 && <1.4, text >=1.2 && <1.3, cryptohash >=0.11 && <0.12, base16-bytestring >=0.1 && <0.2, base64-bytestring >=1.0 && <1.1, tls >=1.2 && <1.3, x509-system >=1.5 && <1.6, x509-store >=1.5 && <1.6, crypto-random >=0.0 && <0.1
+  build-depends: base >=4.7 && <4.8
+               , network >=2.6 && <2.7
+               , mime-mail >=0.4 && <0.5
+               , transformers >=0.4 && <0.5
+               , bytestring >=0.10 && <0.11
+               , haskeline >=0.7 && <0.8
+               , mtl >=2.2 && <2.3
+               , attoparsec >=0.12 && <0.13
+               , filepath >=1.3 && <1.4
+               , text >=1.2 && <1.3
+               , cryptohash >=0.11 && <0.12
+               , base16-bytestring >=0.1 && <0.2
+               , base64-bytestring >=1.0 && <1.1
+               , tls >=1.2 && <1.3
+               , x509-system >=1.5 && <1.6
+               , x509-store >=1.5 && <1.6
+               , crypto-random >=0.0 && <0.1
   
   -- Directories containing source files.
   -- hs-source-dirs:      
   
   -- Base language which the package is written in.
   default-language:    Haskell2010
+
+  ghc-options: -Wall
   
