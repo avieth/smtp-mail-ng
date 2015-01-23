@@ -6,9 +6,9 @@ module Network.Mail.SMTP.SMTPRaw (
   , smtpConnect
   , smtpSendCommand
   , smtpSendCommandAndWait
-  , smtpSend
   , smtpGetReplyLines
   , smtpDisconnect
+  , smtpHandle
 
   ) where
 
@@ -64,3 +64,6 @@ smtpGetReplyLines (SMTPRaw handle) = do
 --   Be sure not to use the SMTPHandle after this.
 smtpDisconnect :: SMTPRaw -> IO ()
 smtpDisconnect (SMTPRaw h) = hClose h
+
+smtpHandle :: SMTPRaw -> Handle
+smtpHandle (SMTPRaw h) = h
