@@ -1,9 +1,6 @@
 module Network.Mail.SMTP.SMTPParameters (
 
     SMTPParameters(..)
-  , SMTPEncryption(..)
-  , SMTPUsername
-  , SMTPPassword
 
   , HostName
   , PortNumber(..)
@@ -15,35 +12,19 @@ module Network.Mail.SMTP.SMTPParameters (
 import Network.Socket (HostName, PortNumber(..))
 import Network.Mail.SMTP.Types
 
+-- | Data necessary to kick-start an SMTP session, plus a flag to indicate
+--   verbosity (actually a misnomer I though; should be smtpQuiet, since we
+--   have only two options: verbose or not verbose).
 data SMTPParameters = SMTPParameters {
     smtpHost :: HostName
   , smtpPort :: PortNumber
-  , smtpAuthentication :: AuthType
-  , smtpEncryption :: SMTPEncryption
-  , smtpUsername :: SMTPUsername
-  , smtpPassword :: SMTPPassword
   , smtpVerbose :: Bool
   } deriving (Show)
 
--- | SMTP encryption methods.
-data SMTPEncryption
-  = TLS
-  | NONE
-  deriving (Show, Eq, Ord)
-
-type SMTPUsername = Maybe String
-
-type SMTPPassword = Maybe String
-
--- | Default SMTP parameters for some hostname. Uses port 25, no encryption,
---   no username or password.
+-- | Default SMTP parameters for some hostname. Uses port 25, non-verbose.
 defaultSMTPParameters :: HostName -> SMTPParameters
 defaultSMTPParameters hostname = SMTPParameters {
     smtpHost = hostname
   , smtpPort = 25
-  , smtpAuthentication = LOGIN
-  , smtpEncryption = NONE
-  , smtpUsername = Nothing
-  , smtpPassword = Nothing
   , smtpVerbose = False
   }
