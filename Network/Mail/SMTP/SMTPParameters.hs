@@ -22,6 +22,7 @@ data SMTPParameters = SMTPParameters {
   , smtpEncryption :: SMTPEncryption
   , smtpUsername :: SMTPUsername
   , smtpPassword :: SMTPPassword
+  , smtpVerbose :: Bool
   } deriving (Show)
 
 -- | SMTP encryption methods.
@@ -44,4 +45,5 @@ defaultSMTPParameters hostname = SMTPParameters {
   , smtpEncryption = NONE
   , smtpUsername = Nothing
   , smtpPassword = Nothing
+  , smtpVerbose = False
   }

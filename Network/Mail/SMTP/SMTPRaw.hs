@@ -2,13 +2,12 @@
 
 module Network.Mail.SMTP.SMTPRaw (
 
-    SMTPRaw
+    SMTPRaw(..)
   , smtpConnect
   , smtpSendCommand
   , smtpSendCommandAndWait
   , smtpGetReplyLines
   , smtpDisconnect
-  , smtpHandle
 
   ) where
 
@@ -22,9 +21,15 @@ import           System.IO
 import           Network.Mail.SMTP.ReplyLine
 import           Network.Mail.SMTP.Types
 
--- | A raw handle for (what is assumed to be) a handle to a socket (possibly
---   closed) interfacing an SMTP server.
-data SMTPRaw = SMTPRaw Handle
+-- | An SMTPRaw has arbitrary push/pull/close methods, and ALWAYS a Handle,
+--   but that Handle is not assumed to be the direct means by which we push
+--   pull or close. This is for STARTTLS support.
+data SMTPRaw = SMTPRaw {
+    smtpPush :: B.ByteString -> IO ()
+  , smtpPull :: IO B.ByteString
+  , smtpClose :: IO ()
+  , smtpHandle :: Handle
+  }
 
 -- | Try to open an SMTPRaw, taking the server greeting as well.
 --   No exception handling is performed.
@@ -32,7 +37,10 @@ smtpConnect :: String -> Int -> IO (SMTPRaw, Maybe Greeting)
 smtpConnect host port = do
   handle <- connectTo host (PortNumber $ fromIntegral port)
   greet <- parseWith (B.hGetSome handle 2048) greeting ""
-  return $ (SMTPRaw handle, maybeResult greet)
+  let push = B.hPut handle
+  let pull = B.hGetSome handle 2048
+  let close = hClose handle
+  return $ (SMTPRaw push pull close handle, maybeResult greet)
 
 -- | Send an SMTP command and wait for the reply.
 --   You get Nothing in case the reply does not parse.
@@ -51,19 +59,16 @@ smtpSendCommand smtpraw cmd = do
 
 -- | Send a raw byte string. Use with care. No exception handling is performed.
 smtpSendRaw :: SMTPRaw -> B.ByteString -> IO ()
-smtpSendRaw (SMTPRaw handle) bs = B.hPut handle bs
+smtpSendRaw = smtpPush
 
 -- | Try to read ReplyLines from the SMTPRaw.
 --   No exception handling is performed.
 smtpGetReplyLines :: SMTPRaw -> IO (Maybe [ReplyLine])
-smtpGetReplyLines (SMTPRaw handle) = do
-  replies <- parseWith (B.hGetSome handle 2048) replyLines ""
+smtpGetReplyLines smtpraw = do
+  replies <- parseWith (smtpPull smtpraw) replyLines ""
   return $ maybeResult replies
 
 -- | Close an SMTPRaw handle
 --   Be sure not to use the SMTPHandle after this.
 smtpDisconnect :: SMTPRaw -> IO ()
-smtpDisconnect (SMTPRaw h) = hClose h
-
-smtpHandle :: SMTPRaw -> Handle
-smtpHandle (SMTPRaw h) = h
+smtpDisconnect = smtpClose

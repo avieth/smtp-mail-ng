@@ -5,6 +5,8 @@ module Network.Mail.SMTP.SMTP (
 
     SMTP
 
+  , smtp
+
   , command
   , expect
   , expectCode
@@ -14,6 +16,8 @@ module Network.Mail.SMTP.SMTP (
 
   , getSMTPServerHostName
   , getSMTPClientHostName
+
+  , startTLS
 
   , SMTPError(..)
 
@@ -25,7 +29,7 @@ import Control.Applicative
 import Control.Monad.IO.Class
 import Control.Monad.Trans.Class
 import Control.Monad.Trans.Except
-import Control.Monad.Trans.Reader
+import Control.Monad.Trans.State
 
 import Network
 import Network.BSD
@@ -40,6 +44,7 @@ import Network.TLS.Extra.Cipher (ciphersuite_all)
 import System.X509 (getSystemCertificateStore)
 import Data.X509.CertificateStore (CertificateStore)
 import Data.ByteString.Char8 (pack)
+import qualified Data.ByteString.Lazy as BL
 import Crypto.Random
 
 import System.IO
@@ -55,6 +60,7 @@ data SMTPContext = SMTPContext {
     smtpRaw :: SMTPRaw
   , smtpServerHostName :: HostName
   , smtpClientHostName :: HostName
+  , smtpDebug :: String -> IO ()
   }
 
 -- | Access the Handle datatype buried beneath the SMTP abstraction.
@@ -66,20 +72,25 @@ getSMTPServerHostName :: SMTPContext -> HostName
 getSMTPServerHostName = smtpServerHostName
 
 getSMTPClientHostName :: SMTPContext -> HostName
-getSMTPClientHostName = smtpServerHostName
+getSMTPClientHostName = smtpClientHostName
 
 -- | We define a little SMTP DSL: it can do effects, things can go wrong, and
 --   it carried immutable state.
 newtype SMTP a = SMTP {
-    runSMTP :: ExceptT SMTPError (ReaderT SMTPContext IO) a
-  } deriving (Functor, Applicative, Monad)
+    runSMTP :: ExceptT SMTPError (StateT SMTPContext IO) a
+  } deriving (Functor, Applicative, Monad, MonadIO)
 
+-- | Run an expression in the SMTP monad.
+--   Should be exception safe, but I am not confident in this.
 smtp :: SMTPParameters -> SMTP a -> IO (Either SMTPError a)
 smtp smtpParameters smtpValue = do
   smtpContext <- makeSMTPContext smtpParameters
   case smtpContext of
     Left err -> return $ Left err
-    Right smtpContext -> runReaderT (runExceptT (runSMTP smtpValue)) smtpContext
+    Right smtpContext -> do
+      x <- evalStateT (runExceptT (runSMTP smtpValue)) smtpContext
+      closeSMTPContext smtpContext
+      return x
 
 makeSMTPContext :: SMTPParameters -> IO (Either SMTPError SMTPContext)
 makeSMTPContext smtpParameters = do
@@ -87,16 +98,25 @@ makeSMTPContext smtpParameters = do
     result <- liftIO $ try (smtpConnect serverHostname (fromIntegral port))
     return $ case result :: Either SomeException (SMTPRaw, Maybe Greeting) of
       Left err -> Left ConnectionFailure
-      Right (smtpRaw, _) -> Right $ SMTPContext smtpRaw serverHostname clientHostname
+      Right (smtpRaw, _) -> Right $ SMTPContext smtpRaw serverHostname clientHostname debug
   where
     serverHostname = smtpHost smtpParameters
     port = smtpPort smtpParameters
+    debug = if smtpVerbose smtpParameters
+            then print
+            else const (return ())
+
+closeSMTPContext :: SMTPContext -> IO ()
+closeSMTPContext smtpContext = do
+  hClose (smtpHandle (smtpRaw smtpContext))
 
 -- | Send a command wait for the reply.
 command :: Command -> SMTP [ReplyLine]
 command cmd = SMTP $ do
-  ctxt <- lift ask
+  ctxt <- lift get
+  liftIO $ (smtpDebug ctxt ("Send command: " ++ show cmd))
   result <- liftIO $ try ((smtpSendCommandAndWait (smtpRaw ctxt) cmd))
+  liftIO $ (smtpDebug ctxt ("Receive response: " ++ show result))
   case result :: Either SomeException (Maybe [ReplyLine]) of
     Left err -> throwE UnknownError
     Right x -> case x of
@@ -120,7 +140,7 @@ expectCode reply code = expect reply hasCode
 
 -- | Grab the SMTPContext.
 smtpContext :: SMTP SMTPContext
-smtpContext = SMTP $ lift ask
+smtpContext = SMTP $ lift get
 
 -- | Try to get TLS going on an SMTP connection.
 startTLS :: SMTP ()
@@ -135,7 +155,7 @@ startTLS = do
 
 tlsContext :: SMTP Context
 tlsContext = SMTP $ do
-  ctxt <- lift ask
+  ctxt <- lift get
   tlsContext <- liftIO $ try (makeTLSContext (getSMTPHandle ctxt) (getSMTPServerHostName ctxt))
   case tlsContext :: Either SomeException Context of
     Left err -> throwE EncryptionError
@@ -146,7 +166,16 @@ tlsUpgrade context = SMTP $ do
   result <- liftIO $ try (handshake context)
   case result :: Either SomeException () of
     Left err -> throwE EncryptionError
-    Right () -> return ()
+    Right () -> do
+      -- Now that we have upgraded, we must change the means by which we push
+      -- and pull data to and from the pipe; we must use the TLS library's
+      -- sendData and recvData
+      let push = sendData context . BL.fromStrict
+      let pull = recvData context
+      let close = contextClose context
+      lift $ modify (\ctx ->
+          ctx { smtpRaw = SMTPRaw push pull close (smtpHandle (smtpRaw ctx)) }
+        )
 
 -- | Get a TLS context on a given Handle against a given HostName.
 --   We choose a big cipher suite, the SystemRNG, and the system certificate
