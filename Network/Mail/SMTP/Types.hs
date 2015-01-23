@@ -1,27 +1,32 @@
 module Network.Mail.SMTP.Types (
 
-    Command(..)
+    AuthType(..)
+
+  , UserName
+  , Password
+
+  , Command(..)
 
   , toByteString
     
   , ReplyCode
   , Response(..)
 
-    -- * Auth types (re-exports)
-  , UserName
-  , Password
-  , AuthType(..)
-
     -- * "Network.Mail.Mime" types (re-exports)
   , Address(..)
 
   ) where
 
-import Network.Mail.SMTP.Auth
-
 import Data.ByteString (ByteString)
 import qualified Data.ByteString.Char8 as B
 import Network.Mail.Mime
+
+type UserName = String
+type Password = String
+
+data AuthType
+  = LOGIN
+  deriving (Show)
 
 data Command
     = HELO ByteString

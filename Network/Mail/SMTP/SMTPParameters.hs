@@ -13,7 +13,7 @@ module Network.Mail.SMTP.SMTPParameters (
   ) where
 
 import Network.Socket (HostName, PortNumber(..))
-import Network.Mail.SMTP.Auth
+import Network.Mail.SMTP.Types
 
 data SMTPParameters = SMTPParameters {
     smtpHost :: HostName
@@ -41,7 +41,7 @@ defaultSMTPParameters :: HostName -> SMTPParameters
 defaultSMTPParameters hostname = SMTPParameters {
     smtpHost = hostname
   , smtpPort = 25
-  , smtpAuthentication = PLAIN
+  , smtpAuthentication = LOGIN
   , smtpEncryption = NONE
   , smtpUsername = Nothing
   , smtpPassword = Nothing
