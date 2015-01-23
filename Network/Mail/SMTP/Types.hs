@@ -33,11 +33,10 @@ data Command
     | EHLO ByteString
     | MAIL ByteString
     | RCPT ByteString
-    | DATA ByteString
+    | DATA
     | EXPN ByteString
     | VRFY ByteString
     | HELP ByteString
-    | AUTH ByteString
     | NOOP
     | RSET
     | QUIT
@@ -48,13 +47,12 @@ toByteString :: Command -> B.ByteString
 toByteString command = case command of
     HELO bs -> B.intercalate space [(B.pack "HELO"), bs]
     EHLO bs -> B.intercalate space [(B.pack "EHLO"), bs]
-    MAIL bs -> B.intercalate space [(B.pack "MAIL"), bs]
-    RCPT bs -> B.intercalate space [(B.pack "RCPT"), bs]
-    DATA bs -> B.intercalate space [(B.pack "DATA"), bs]
+    MAIL bs -> B.intercalate space [(B.pack "MAIL FROM:"), bs]
+    RCPT bs -> B.intercalate space [(B.pack "RCPT TO:"), bs]
     EXPN bs -> B.intercalate space [(B.pack "EXPN"), bs]
     VRFY bs -> B.intercalate space [(B.pack "VRFY"), bs]
     HELP bs -> B.intercalate space [(B.pack "HELP"), bs]
-    AUTH bs -> B.intercalate space [(B.pack "AUTH"), bs]
+    DATA -> B.pack "DATA"
     NOOP -> B.pack "NOOP"
     RSET -> B.pack "RSET"
     QUIT -> B.pack "QUIT"

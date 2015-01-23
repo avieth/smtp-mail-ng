@@ -16,6 +16,7 @@ import qualified Data.ByteString       as B
 import qualified Data.ByteString.Char8 as B8
 
 import Network.Mail.SMTP.SMTP
+import Network.Mail.SMTP.Types
 
 -- | Do LOGIN authentication.
 authLogin :: UserName -> Password -> SMTP ()
