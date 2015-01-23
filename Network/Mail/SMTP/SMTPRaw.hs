@@ -6,6 +6,7 @@ module Network.Mail.SMTP.SMTPRaw (
   , smtpConnect
   , smtpSendCommand
   , smtpSendCommandAndWait
+  , smtpSendRaw
   , smtpGetReplyLines
   , smtpDisconnect
 

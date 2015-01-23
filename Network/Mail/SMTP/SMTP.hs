@@ -8,6 +8,7 @@ module Network.Mail.SMTP.SMTP (
   , smtp
 
   , command
+  , bytes
   , expect
   , expectCode
 
@@ -44,6 +45,7 @@ import Network.TLS.Extra.Cipher (ciphersuite_all)
 import System.X509 (getSystemCertificateStore)
 import Data.X509.CertificateStore (CertificateStore)
 import Data.ByteString.Char8 (pack)
+import qualified Data.ByteString as B
 import qualified Data.ByteString.Lazy as BL
 import Crypto.Random
 
@@ -103,34 +105,53 @@ makeSMTPContext smtpParameters = do
     serverHostname = smtpHost smtpParameters
     port = smtpPort smtpParameters
     debug = if smtpVerbose smtpParameters
-            then print
+            then putStrLn
             else const (return ())
 
 closeSMTPContext :: SMTPContext -> IO ()
 closeSMTPContext smtpContext = do
   hClose (smtpHandle (smtpRaw smtpContext))
 
--- | Send a command wait for the reply.
-command :: Command -> SMTP [ReplyLine]
+-- | Send a command, without waiting for the reply.
+command :: Command -> SMTP ()
 command cmd = SMTP $ do
   ctxt <- lift get
   liftIO $ (smtpDebug ctxt ("Send command: " ++ show cmd))
-  result <- liftIO $ try ((smtpSendCommandAndWait (smtpRaw ctxt) cmd))
-  liftIO $ (smtpDebug ctxt ("Receive response: " ++ show result))
-  case result :: Either SomeException (Maybe [ReplyLine]) of
+  result <- liftIO $ try ((smtpSendCommand (smtpRaw ctxt) cmd))
+  case result :: Either SomeException () of
     Left err -> throwE UnknownError
-    Right x -> case x of
-      Just y -> return y
-      Nothing -> throwE UnknownError
+    Right () -> return ()
 
-expect :: [ReplyLine] -> ([ReplyLine] -> Maybe SMTPError) -> SMTP ()
-expect reply ok = SMTP $ do
-  case ok reply of
-    Just err -> throwE err
-    Nothing -> return ()
+-- | Send some bytes, with a crlf inserted at the end, without waiting for
+--   the reply.
+bytes :: B.ByteString -> SMTP ()
+bytes bs = SMTP $ do
+    ctxt <- lift get
+    liftIO $ (smtpDebug ctxt ("Send bytes: " ++ show bs))
+    result <- liftIO $ try ((smtpSendRaw (smtpRaw ctxt) (B.append bs crlf)))
+    case result :: Either SomeException () of
+      Left err -> throwE UnknownError
+      Right () -> return ()
+  where
+    crlf = pack "\r\n"
 
-expectCode :: [ReplyLine] -> ReplyCode -> SMTP ()
-expectCode reply code = expect reply hasCode
+-- | Pull a response from the server, passing it through a function which
+--   checks that it's an expected response. If the response doesn't parse as
+--   an SMTP response, we give an UnexpectedResponse.
+expect :: ([ReplyLine] -> Maybe SMTPError) -> SMTP ()
+expect ok = SMTP $ do
+  ctxt <- lift get
+  let smtpraw = smtpRaw ctxt
+  reply <- liftIO $ smtpGetReplyLines smtpraw
+  liftIO $ (smtpDebug ctxt ("Receive response: " ++ show reply))
+  case reply of
+    Nothing -> throwE UnexpectedResponse
+    Just reply -> case ok reply of
+      Just err -> throwE err
+      Nothing -> return ()
+
+expectCode :: ReplyCode -> SMTP ()
+expectCode code = expect hasCode
   where
     hasCode [] = Just UnexpectedResponse
     hasCode (reply : _) =
@@ -146,12 +167,12 @@ smtpContext = SMTP $ lift get
 startTLS :: SMTP ()
 startTLS = do
   context <- tlsContext
-  reply <- command STARTTLS
-  expectCode reply 220
+  command STARTTLS
+  expectCode 220
   tlsUpgrade context
   ctxt <- smtpContext
-  reply <- command (EHLO (pack $ getSMTPClientHostName ctxt))
-  expectCode reply 250
+  command (EHLO (pack $ getSMTPClientHostName ctxt))
+  expectCode 250
 
 tlsContext :: SMTP Context
 tlsContext = SMTP $ do
