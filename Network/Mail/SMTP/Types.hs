@@ -1,3 +1,5 @@
+{-# LANGUAGE OverloadedStrings #-}
+
 module Network.Mail.SMTP.Types (
 
     AuthType(..)
@@ -47,8 +49,8 @@ toByteString :: Command -> B.ByteString
 toByteString command = case command of
     HELO bs -> B.intercalate space [(B.pack "HELO"), bs]
     EHLO bs -> B.intercalate space [(B.pack "EHLO"), bs]
-    MAIL bs -> B.intercalate space [(B.pack "MAIL FROM:"), bs]
-    RCPT bs -> B.intercalate space [(B.pack "RCPT TO:"), bs]
+    MAIL bs -> B.append (B.pack "MAIL FROM:<") (B.append bs ">")
+    RCPT bs -> B.append (B.pack "RCPT TO:<") (B.append bs ">")
     EXPN bs -> B.intercalate space [(B.pack "EXPN"), bs]
     VRFY bs -> B.intercalate space [(B.pack "VRFY"), bs]
     HELP bs -> B.intercalate space [(B.pack "HELP"), bs]

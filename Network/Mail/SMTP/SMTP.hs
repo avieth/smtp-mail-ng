@@ -116,7 +116,7 @@ closeSMTPContext smtpContext = do
 command :: Command -> SMTP ()
 command cmd = SMTP $ do
   ctxt <- lift get
-  liftIO $ (smtpDebug ctxt ("Send command: " ++ show cmd))
+  liftIO $ (smtpDebug ctxt ("Send command: " ++ show (toByteString cmd)))
   result <- liftIO $ try ((smtpSendCommand (smtpRaw ctxt) cmd))
   case result :: Either SomeException () of
     Left err -> throwE UnknownError
