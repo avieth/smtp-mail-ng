@@ -1,70 +1,74 @@
 SMTP-MAIL
 =========
 
-Making it easy to send SMTP emails from Haskell.
+An SMTP client EDSL. If you want to interact with an SMTP server, this library
+may be able to help you. It even supports STARTTLS!
 
-```
-cabal install smtp-mail
-```
+The star is the SMTP monad, terms of which (thanks to do notation) often
+resemble an SMTP session.
 
 ### Sending with an SMTP server
 
 ```haskell
 {-# LANGUAGE OverloadedStrings #-}
 
-import Network.Mail.SMTP
+import Network.BSD (getHostName)
+import Network.Mail.SMTP.SMTP
+import Network.Mail.SMTP.SMTPParameters
+import Network.Mail.SMTP.Types
+import Network.Mail.SMTP.Auth
+import Network.Mail.SMTP.Send
+import Network.Mail.Mime
+import Control.Monad.IO.Class (liftIO)
+import Data.ByteString.Char8 (pack)
 
-from       = Address Nothing "email@domain.com"
-to         = [Address (Just "Jason Hickner") "email@domain.com"]
-cc         = []
-bcc        = []
-subject    = "email subject"
-body       = plainTextPart "email body"
-html       = htmlPart "<h1>HTML</h1>"
+main = smtp smtpParameters $ do
+  hostname <- liftIO getHostName
+  -- Send EHLO and expect a 250
+  command $ EHLO (pack hostname)
+  expectCode 250
+  -- Upgrade the connection to TLS
+  -- This is a kind of utility term that takes care of sending STARTTLS,
+  -- expecting a 220, and then upgrading the underlying connection to TLS.
+  startTLS
+  -- Authenticate with LOGIN scheme
+  authLogin "aovieth@gmail.com" "mySuperSecretPassword"
+  -- Send the message
+  send message
+  -- End the session.
+  -- Closing the connection is handled automatically by the function smtp
+  command QUIT
 
-mail = simpleMail from to cc bcc subject [body, html]
+-- We use datatypes from the mime-mail package to describe Mail.
+message :: Mail
+message = simpleMail' to from subject body
+  where
+    to = Address (Just "Alexander Vieth") "aovieth@gmail.com"
+    from = Address (Just "Alexander Vieth") "alex@lagoa.com"
+    subject = "Hey!"
+    body = "It works!"
 
-main = sendMail host mail
+smtpParameters :: SMTPParameters
+smtpParameters = (defaultSMTPParameters "smtp.googlemail.com") {
+    smtpVerbose = True
+  }
 ```
 
-or with an attachment:
+### Moving forward
 
-```haskell
-main = do
-  attachment <- filePart "application/octet-stream" "path/to/attachment.zip"
-  let mail = simpleMail from to cc bcc subject [body, html, attachment]
-  sendMail host mail
-```
+We must implement support for more AUTH schemes. Right now all that we
+facilitate is LOGIN, although other methods are possible via the bytes
+term.
 
-or, with authentication:
+There is an orphan datatype, Response, from before the fork. It may be
+good to use this instead of bare Ints.
 
-```haskell
-main = sendMailWithLogin host user pass mail
-```
-
-Note: `sendMail'` and `sendMailWithLogin'` variations are also provided if you want to specify a port as well as a hostname.
-
-
-### Sending with sendmail
-
-If you'd like to use sendmail, the sendmail interface from ```Network.Mail.Mime``` 
-is reexported as well:
-
-```haskell
--- send via the default sendmail executable with default options
-renderSendMail mail
-
--- send via the specified executable with specified options
-renderSendMailCustom filepath [opts] mail
-```
-
-For more complicated scenarios or for adding attachments or CC/BCC
-addresses you can import ```Network.Mail.Mime``` and construct ```Mail```
-objects manually.
-
+It would be nice to give a convenient interface for simply sending some
+messages, in which the user must supply only a list of Mail values, an
+SMTPParameters, and a description of the authentication and encryption
+parameters of the mail server.
 
 ### Thanks
 
-This library is based on code from HaskellNet, which appears to be no longer
-maintained. I've cleaned up the error handling, added some API functions to
-make common operations easier, and switched to ByteStrings where applicable.
+This library is forked from Jason Hickner's smtp-mail, but it has diverged
+significantly and bears little resemblance.
