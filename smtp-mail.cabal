@@ -15,6 +15,8 @@ version:             0.1.0.0
 -- A short (one-line) description of the package.
 synopsis:            An SMTP client EDSL
 
+description:         An SMTP client EDSL
+
 -- A longer description of the package.
 -- description:         
 
@@ -80,6 +82,7 @@ library
                , x509-system >=1.5 && <1.6
                , x509-store >=1.5 && <1.6
                , crypto-random >=0.0 && <0.1
+               , stringsearch >= 0.3.6.5
   
   -- Directories containing source files.
   -- hs-source-dirs:      
