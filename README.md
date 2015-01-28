@@ -1,5 +1,5 @@
-SMTP-MAIL
-=========
+SMTP-MAIL-NG
+============
 
 An SMTP client EDSL. If you want to interact with an SMTP server, this library
 may be able to help you. It even supports STARTTLS!
